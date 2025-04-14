@@ -1,0 +1,338 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Parser</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .file-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .submit-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 0;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .submit-btn:hover {
+            background-color: #2980b9;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .results-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .results-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 8px 16px;
+            background-color: #eee;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .tab.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .results-content {
+            display: none;
+        }
+        .results-content.active {
+            display: block;
+        }
+        #formatted-results {
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        #raw-json {
+            white-space: pre-wrap;
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow: auto;
+            max-height: 500px;
+            font-family: monospace;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .section:last-child {
+            border-bottom: none;
+        }
+        .label {
+            font-weight: bold;
+            margin-right: 10px;
+            min-width: 100px;
+            display: inline-block;
+        }
+        .skill-tag {
+            display: inline-block;
+            background-color: #e1f5fe;
+            color: #0277bd;
+            padding: 4px 10px;
+            border-radius: 16px;
+            margin: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Resume Parser</h1>
+        <div class="upload-form">
+            <p>Upload a resume file (PDF, DOCX, TXT, JPG, PNG) to extract structured information.</p>
+            <input type="file" id="resumeFile" class="file-input" accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png">
+            <button id="parseBtn" class="submit-btn">Parse Resume</button>
+        </div>
+        <div class="loader" id="loader"></div>
+        
+        <div class="results-container" id="results-container" style="display: none;">
+            <div class="results-tabs">
+                <div class="tab active" data-tab="formatted">Formatted View</div>
+                <div class="tab" data-tab="raw">Raw JSON</div>
+            </div>
+            <div class="results-content active" id="formatted-results"></div>
+            <div class="results-content" id="raw-json"></div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Update active tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Show corresponding content
+                const tabName = tab.getAttribute('data-tab');
+                document.querySelectorAll('.results-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(tabName === 'formatted' ? 'formatted-results' : 'raw-json').classList.add('active');
+            });
+        });
+        
+        // Format the resume data into readable HTML
+        function formatResumeData(data) {
+            let html = '';
+            
+            // Personal Info Section
+            html += '<div class="section">';
+            html += `<h2>${data.name || 'Unnamed Candidate'}</h2>`;
+            
+            if (data.contact) {
+                if (data.contact.email) html += `<p><span class="label">Email:</span> ${data.contact.email}</p>`;
+                if (data.contact.phone) html += `<p><span class="label">Phone:</span> ${data.contact.phone}</p>`;
+                if (data.contact.linkedin) html += `<p><span class="label">LinkedIn:</span> ${data.contact.linkedin}</p>`;
+                if (data.contact.github) html += `<p><span class="label">GitHub:</span> ${data.contact.github}</p>`;
+            }
+            html += '</div>';
+            
+            // Education Section
+            if (data.education && data.education.length > 0) {
+                html += '<div class="section">';
+                html += '<h3>Education</h3>';
+                
+                data.education.forEach(edu => {
+                    html += '<div style="margin-bottom: 15px;">';
+                    html += `<p><strong>${edu.degree || 'Degree'}</strong> - ${edu.institution || 'Institution'}</p>`;
+                    if (edu.gpa) html += `<p>GPA: ${edu.gpa}</p>`;
+                    if (edu.duration) html += `<p>Duration: ${edu.duration}</p>`;
+                    if (edu.location) html += `<p>Location: ${edu.location}</p>`;
+                    html += '</div>';
+                });
+                
+                html += '</div>';
+            }
+            
+            // Work Experience Section
+            if (data.work_experience && data.work_experience.length > 0) {
+                html += '<div class="section">';
+                html += '<h3>Work Experience</h3>';
+                
+                data.work_experience.forEach(exp => {
+                    html += '<div style="margin-bottom: 15px;">';
+                    html += `<p><strong>${exp.title || 'Position'}</strong> at ${exp.company || 'Company'}</p>`;
+                    if (exp.duration) html += `<p>Duration: ${exp.duration}</p>`;
+                    if (exp.location) html += `<p>Location: ${exp.location}</p>`;
+                    html += '</div>';
+                });
+                
+                html += '</div>';
+            }
+            
+            // Skills Section
+            if (data.skills) {
+                html += '<div class="section">';
+                html += '<h3>Skills</h3>';
+                
+                if (data.skills.programming_languages && data.skills.programming_languages.length > 0) {
+                    html += '<p><strong>Programming Languages:</strong></p>';
+                    html += '<div>';
+                    data.skills.programming_languages.forEach(skill => {
+                        html += `<span class="skill-tag">${skill}</span>`;
+                    });
+                    html += '</div>';
+                }
+                
+                if (data.skills.technologies && data.skills.technologies.length > 0) {
+                    html += '<p><strong>Technologies:</strong></p>';
+                    html += '<div>';
+                    data.skills.technologies.forEach(skill => {
+                        html += `<span class="skill-tag">${skill}</span>`;
+                    });
+                    html += '</div>';
+                }
+                
+                if (data.skills.big_data_ml_dl && data.skills.big_data_ml_dl.length > 0) {
+                    html += '<p><strong>Big Data/ML/DL:</strong></p>';
+                    html += '<div>';
+                    data.skills.big_data_ml_dl.forEach(skill => {
+                        html += `<span class="skill-tag">${skill}</span>`;
+                    });
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+            }
+            
+            // Projects Section
+            if (data.projects && data.projects.length > 0) {
+                html += '<div class="section">';
+                html += '<h3>Projects</h3>';
+                html += '<ul>';
+                data.projects.forEach(project => {
+                    html += `<li>${project}</li>`;
+                });
+                html += '</ul>';
+                html += '</div>';
+            }
+            
+            // Achievements Section
+            if (data.achievements && data.achievements.length > 0) {
+                html += '<div class="section">';
+                html += '<h3>Achievements</h3>';
+                html += '<ul>';
+                data.achievements.forEach(achievement => {
+                    html += `<li>${achievement}</li>`;
+                });
+                html += '</ul>';
+                html += '</div>';
+            }
+            
+            return html;
+        }
+        
+        // Handle form submission
+        document.getElementById('parseBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('resumeFile');
+            const resultsContainer = document.getElementById('results-container');
+            const formattedResults = document.getElementById('formatted-results');
+            const rawJson = document.getElementById('raw-json');
+            const loader = document.getElementById('loader');
+            
+            if (!fileInput.files[0]) {
+                alert('Please select a file to upload');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            // Show loader
+            loader.style.display = 'block';
+            resultsContainer.style.display = 'none';
+            
+            try {
+                const response = await fetch('/parse-resume/', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Unknown error occurred');
+                }
+                
+                const data = await response.json();
+                
+                // Display formatted results
+                formattedResults.innerHTML = formatResumeData(data);
+                
+                // Display raw JSON
+                rawJson.textContent = JSON.stringify(data, null, 2);
+                
+                // Show results container
+                resultsContainer.style.display = 'block';
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            } finally {
+                // Hide loader
+                loader.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
