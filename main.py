@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import os
 import tempfile
+import hashlib
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from google import genai
@@ -151,7 +152,7 @@ async def parse_resume(
 
             {{
                 "data": {{
-                    "resume_id": "[Generate a random hash/id]",
+                    "resume_id": "", # Leave this blank, we will generate it in Python
                     "file_name": "{file.filename}",
                     "first_name": "",
                     "last_name": "",
@@ -270,6 +271,23 @@ async def parse_resume(
             print("Parsing response text to JSON...")
             parsed_data = json.loads(response.text)
             print("JSON parsing successful")
+
+            # Generate a SHA-256 hash from key resume content
+            # Combine key fields from the parsed data to create a unique string
+            content_for_hash = (
+                f"{parsed_data['data'].get('full_name', '')}"
+                f"{parsed_data['data'].get('email_id', '')}"
+                f"{parsed_data['data'].get('phone_number', '')}"
+                f"{parsed_data['data'].get('plain_text', '')[:1000]}"  # Including some of the raw text
+            )
+            
+            # Generate SHA-256 hash
+            resume_hash = hashlib.sha256(content_for_hash.encode('utf-8')).hexdigest()
+            
+            # Add the generated hash to the parsed data
+            parsed_data['data']['resume_id'] = resume_hash
+            
+            print(f"Generated resume ID: {resume_hash}")
         except json.JSONDecodeError as json_error:
             print(f"JSON parsing error: {str(json_error)}")
             print(f"Response text: {response.text[:200]}...")
