@@ -71,11 +71,19 @@ async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/parse-resume/")
-async def parse_resume(file: UploadFile = File(...)):
+async def parse_resume(
+    file: UploadFile = File(...),
+    secret_key: str = Form(...)
+    ):
     """
     Parse a resume file by first extracting text and then using Gemini API
     """
-    # Validate file type
+    if secret_key != "bhajrangibhaijaan":
+        return JSONResponse(
+            status_code=401,  # Unauthorized
+            content={"error": "Invalid secret key"}
+        )
+        # Validate file type
     allowed_extensions = ['.pdf', '.docx', '.doc', '.txt', '.jpg', '.jpeg', '.png']
     file_ext = os.path.splitext(file.filename)[1].lower()
     
@@ -128,7 +136,7 @@ async def parse_resume(file: UploadFile = File(...)):
         
         # Send extracted text to Gemini API for structured parsing
         try:
-            print("Sending extracted text to Gemini API...")
+            print("Sending extracted text to Gemini  API...")
             response = genai_client.models.generate_content(
                 model=MODEL_ID,
                 contents=[
@@ -142,38 +150,99 @@ async def parse_resume(file: UploadFile = File(...)):
             Extract the following details from the resume text below and return the data in the following strict JSON format:
 
             {{
-            "name": "",
-            "contact": {{
-                "phone": "",
-                "email": "",
-                "linkedin": "",
-                "github": ""
-            }},
-            "education": [
-                {{
-                "institution": "",
-                "degree": "",
-                "gpa": "",
-                "duration": "",
-                "location": ""
-                }}
-            ],
-            "work_experience": [
-                {{
-                "title": "",
-                "company": "",
-                "duration": "",
-                "location": ""
-                }}
-            ],
-            "skills": {{
-                "programming_languages": [],
-                "technologies": [],
-                "big_data_ml_dl": []
-            }},
-            "achievements": [],
-            "projects": []
+                "data": {{
+                    "resume_id": "[Generate a random hash/id]",
+                    "file_name": "{file.filename}",
+                    "first_name": "",
+                    "last_name": "",
+                    "full_name": "",
+                    "email_id": "",
+                    "phone_number": "",
+                    "gender": null,
+                    "job_titles": "",
+                    "category": "Information",
+                    "sub_category": "Software developers and programmers",
+                    "city": "",
+                    "country": "",
+                    "address": [
+                        {{
+                            "Street": "",
+                            "City": "",
+                            "State": "",
+                            "StateIsoCode": "",
+                            "Country": "",
+                            "CountryCode": {{
+                                "IsoAlpha2": "",
+                                "IsoAlpha3": "",
+                                "UNCode": ""
+                            }},
+                            "ZipCode": "",
+                            "FormattedAddress": "",
+                            "Type": "Present",
+                            "ConfidenceScore": 7
+                        }}
+                    ],
+                    "websites": [
+                        {{
+                            "Type": "",
+                            "Url": ""
+                        }}
+                    ],
+                    "qualifications": "",
+                    "summary": "",
+                    "employment_data": [
+                        {{
+                            "Employer": {{
+                                "EmployerName": "",
+                                "FormattedName": "",
+                                "ConfidenceScore": 9
+                            }},
+                            "JobProfile": {{
+                                "Title": "",
+                                "FormattedName": "",
+                                "RelatedSkills": []
+                            }},
+                            "Location": {{
+                                "City": "",
+                                "State": "",
+                                "StateIsoCode": "",
+                                "Country": "",
+                                "CountryCode": {{
+                                    "IsoAlpha2": "",
+                                    "IsoAlpha3": "",
+                                    "UNCode": ""
+                                }}
+                            }},
+                            "JobPeriod": "",
+                            "FormattedJobPeriod": "",
+                            "StartDate": "",
+                            "EndDate": "",
+                            "IsCurrentEmployer": "",
+                            "JobDescription": ""
+                        }}
+                    ],
+                    "employers": "",
+                    "total_experience_years": "",
+                    "job_profile": "",
+                    "salary_current": null,
+                    "salary_expectations": null,
+                    "current_employer": "",
+                    "executive_summary": "",
+                    "objectives": "",
+                    "hobbies": "",
+                    "plain_text": "{extracted_text}"
+                }},
+                "skills": [],
+                "websites": [
+                    {{
+                        "Type": "",
+                        "Url": ""
+                    }}
+                ],
             }}
+            
+            When extracting websites, identify the type (e.g., LinkedIn, GitHub, Portfolio, Personal) and provide the full URL. If multiple websites are found, include them all as separate objects in the websites array.
+            For skills, extract all technical, soft, and domain-specific skills from the resume and present them as a comma-separated string.
 
             Only return the JSON. Do not use Markdown, bullet points, or extra text. Do not explain anything.
 
@@ -223,7 +292,7 @@ async def parse_resume(file: UploadFile = File(...)):
             status_code=500,
             content={"error": f"Error processing file: {str(e)}"}
         )
-
+    
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

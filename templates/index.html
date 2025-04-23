@@ -20,12 +20,10 @@
             padding: 30px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        h1, h2, h3 {
-            color: #2c3e50;
-        }
         h1 {
             text-align: center;
             margin-bottom: 30px;
+            color: #2c3e50;
         }
         .upload-form {
             display: flex;
@@ -71,69 +69,15 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .results-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .results-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .tab {
-            padding: 8px 16px;
-            background-color: #eee;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        .tab.active {
-            background-color: #3498db;
-            color: white;
-        }
-        .results-content {
-            display: none;
-        }
-        .results-content.active {
-            display: block;
-        }
-        #formatted-results {
-            padding: 20px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
         #raw-json {
             white-space: pre-wrap;
             background-color: #f5f5f5;
             padding: 15px;
             border-radius: 5px;
             overflow: auto;
-            max-height: 500px;
+            max-height: 70vh;
             font-family: monospace;
-        }
-        .section {
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
-        }
-        .section:last-child {
-            border-bottom: none;
-        }
-        .label {
-            font-weight: bold;
-            margin-right: 10px;
-            min-width: 100px;
-            display: inline-block;
-        }
-        .skill-tag {
-            display: inline-block;
-            background-color: #e1f5fe;
-            color: #0277bd;
-            padding: 4px 10px;
-            border-radius: 16px;
-            margin: 4px;
-            font-size: 14px;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -143,153 +87,23 @@
         <div class="upload-form">
             <p>Upload a resume file (PDF, DOCX, TXT, JPG, PNG) to extract structured information.</p>
             <input type="file" id="resumeFile" class="file-input" accept=".pdf,.docx,.doc,.txt,.jpg,.jpeg,.png">
+            <input type="password" id="secretKey" class="file-input" placeholder="Enter secret key">
             <button id="parseBtn" class="submit-btn">Parse Resume</button>
         </div>
         <div class="loader" id="loader"></div>
         
-        <div class="results-container" id="results-container" style="display: none;">
-            <div class="results-tabs">
-                <div class="tab active" data-tab="formatted">Formatted View</div>
-                <div class="tab" data-tab="raw">Raw JSON</div>
-            </div>
-            <div class="results-content active" id="formatted-results"></div>
-            <div class="results-content" id="raw-json"></div>
+        <div id="results-container" style="display: none;">
+            <h3>Parsed Resume Data (JSON)</h3>
+            <div id="raw-json"></div>
         </div>
     </div>
 
     <script>
-        // Tab switching functionality
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                // Update active tab
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                
-                // Show corresponding content
-                const tabName = tab.getAttribute('data-tab');
-                document.querySelectorAll('.results-content').forEach(content => {
-                    content.classList.remove('active');
-                });
-                document.getElementById(tabName === 'formatted' ? 'formatted-results' : 'raw-json').classList.add('active');
-            });
-        });
-        
-        // Format the resume data into readable HTML
-        function formatResumeData(data) {
-            let html = '';
-            
-            // Personal Info Section
-            html += '<div class="section">';
-            html += `<h2>${data.name || 'Unnamed Candidate'}</h2>`;
-            
-            if (data.contact) {
-                if (data.contact.email) html += `<p><span class="label">Email:</span> ${data.contact.email}</p>`;
-                if (data.contact.phone) html += `<p><span class="label">Phone:</span> ${data.contact.phone}</p>`;
-                if (data.contact.linkedin) html += `<p><span class="label">LinkedIn:</span> ${data.contact.linkedin}</p>`;
-                if (data.contact.github) html += `<p><span class="label">GitHub:</span> ${data.contact.github}</p>`;
-            }
-            html += '</div>';
-            
-            // Education Section
-            if (data.education && data.education.length > 0) {
-                html += '<div class="section">';
-                html += '<h3>Education</h3>';
-                
-                data.education.forEach(edu => {
-                    html += '<div style="margin-bottom: 15px;">';
-                    html += `<p><strong>${edu.degree || 'Degree'}</strong> - ${edu.institution || 'Institution'}</p>`;
-                    if (edu.gpa) html += `<p>GPA: ${edu.gpa}</p>`;
-                    if (edu.duration) html += `<p>Duration: ${edu.duration}</p>`;
-                    if (edu.location) html += `<p>Location: ${edu.location}</p>`;
-                    html += '</div>';
-                });
-                
-                html += '</div>';
-            }
-            
-            // Work Experience Section
-            if (data.work_experience && data.work_experience.length > 0) {
-                html += '<div class="section">';
-                html += '<h3>Work Experience</h3>';
-                
-                data.work_experience.forEach(exp => {
-                    html += '<div style="margin-bottom: 15px;">';
-                    html += `<p><strong>${exp.title || 'Position'}</strong> at ${exp.company || 'Company'}</p>`;
-                    if (exp.duration) html += `<p>Duration: ${exp.duration}</p>`;
-                    if (exp.location) html += `<p>Location: ${exp.location}</p>`;
-                    html += '</div>';
-                });
-                
-                html += '</div>';
-            }
-            
-            // Skills Section
-            if (data.skills) {
-                html += '<div class="section">';
-                html += '<h3>Skills</h3>';
-                
-                if (data.skills.programming_languages && data.skills.programming_languages.length > 0) {
-                    html += '<p><strong>Programming Languages:</strong></p>';
-                    html += '<div>';
-                    data.skills.programming_languages.forEach(skill => {
-                        html += `<span class="skill-tag">${skill}</span>`;
-                    });
-                    html += '</div>';
-                }
-                
-                if (data.skills.technologies && data.skills.technologies.length > 0) {
-                    html += '<p><strong>Technologies:</strong></p>';
-                    html += '<div>';
-                    data.skills.technologies.forEach(skill => {
-                        html += `<span class="skill-tag">${skill}</span>`;
-                    });
-                    html += '</div>';
-                }
-                
-                if (data.skills.big_data_ml_dl && data.skills.big_data_ml_dl.length > 0) {
-                    html += '<p><strong>Big Data/ML/DL:</strong></p>';
-                    html += '<div>';
-                    data.skills.big_data_ml_dl.forEach(skill => {
-                        html += `<span class="skill-tag">${skill}</span>`;
-                    });
-                    html += '</div>';
-                }
-                
-                html += '</div>';
-            }
-            
-            // Projects Section
-            if (data.projects && data.projects.length > 0) {
-                html += '<div class="section">';
-                html += '<h3>Projects</h3>';
-                html += '<ul>';
-                data.projects.forEach(project => {
-                    html += `<li>${project}</li>`;
-                });
-                html += '</ul>';
-                html += '</div>';
-            }
-            
-            // Achievements Section
-            if (data.achievements && data.achievements.length > 0) {
-                html += '<div class="section">';
-                html += '<h3>Achievements</h3>';
-                html += '<ul>';
-                data.achievements.forEach(achievement => {
-                    html += `<li>${achievement}</li>`;
-                });
-                html += '</ul>';
-                html += '</div>';
-            }
-            
-            return html;
-        }
-        
         // Handle form submission
         document.getElementById('parseBtn').addEventListener('click', async () => {
             const fileInput = document.getElementById('resumeFile');
+            const secretKey = document.getElementById('secretKey').value;
             const resultsContainer = document.getElementById('results-container');
-            const formattedResults = document.getElementById('formatted-results');
             const rawJson = document.getElementById('raw-json');
             const loader = document.getElementById('loader');
             
@@ -297,9 +111,15 @@
                 alert('Please select a file to upload');
                 return;
             }
+
+            if (!secretKey) {
+                alert('Please enter the secret key');
+                return;
+            }
             
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
+            formData.append('secret_key', secretKey);
             
             // Show loader
             loader.style.display = 'block';
@@ -317,9 +137,6 @@
                 }
                 
                 const data = await response.json();
-                
-                // Display formatted results
-                formattedResults.innerHTML = formatResumeData(data);
                 
                 // Display raw JSON
                 rawJson.textContent = JSON.stringify(data, null, 2);
